@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="editor.css" />
+		<link rel="stylesheet" href="../style.css" />
+		<title>Lua Editor</title>
+		<script>
+			let cElm = (t, ...c) => {
+				let e = document.createElement(t);
+				e.classList.add(...c);
+				return e;
+			};
+			let addLog = (text, isError = false) => {
+				let elm = cElm('span', 'log');
+				if (isError) elm.classList.add('error');
+				elm.textContent = text;
+				document.querySelector('#logs').appendChild(elm);
+			};
+			let toString = (item) => {
+				if (typeof item === 'object') return JSON.stringify(item);
+				return new String(item);
+			};
+
+			print = (...args) => {
+				console.log(...args);
+				let string = args.map((e) => (e == null ? 'nil' : toString(e))).join('\t');
+				addLog(string, false);
+			};
+			error = (...args) => {
+				console.error(...args);
+				let string = args.map((e) => (e == null ? 'nil' : toString(e))).join('\t');
+				addLog(string, true);
+			};
+		</script>
+	</head>
+	<body>
+		<div style="all: none">
+			<textarea id="editor" autocapitalize="none" autocomplete="off" spellcheck="false"></textarea>
+			<div id="display"></div>
+			<button id="run">
+				<span id="run_text">RUN</span>
+				<span class="keybind">Ctrl + Enter</span>
+			</button>
+		</div>
+
+		<div id="logs" class="hidden"></div>
+		<button id="clear_logs" class="hidden">&times;</button>
+
+		<div id="disclaimer">
+			<button id="open_disclaimer"></button>
+			<div>
+				This is a custom implementation of Lua and as such, is not up to spec.<br />
+				There is no guarantee that all functions will work or that functionality will be the same.<br />
+
+				Anyway, enjoy using this :)
+			</div>
+		</div>
+
+		<script type="module" defer>
+			import Interpreter from '../lua/Interpreter.js';
+
+			document.querySelector('#open_disclaimer').addEventListener('click', (e) => {
+				document.querySelector('#disclaimer').classList.toggle('open');
+			});
+
+			const display = document.querySelector('#display');
+			const editor = document.querySelector('#editor');
+			const logs = document.querySelector('#logs');
+			const clear_logs = document.querySelector('#clear_logs');
+
+			const deftxt = await (await fetch('../test.lua')).text();
+			editor.value = deftxt;
+
+			const colored = colorCode(deftxt);
+			display.innerHTML = colored;
+
+			let showing = false;
+			let selectionStart = null;
+			let selectionEnd = null;
+
+			function toggleShow() {
+				showing = !showing;
+				display.classList.toggle('hidden', showing);
+				editor.classList.toggle('hidden', showing);
+				logs.classList.toggle('hidden', !showing);
+				clear_logs.classList.toggle('hidden', !showing);
+
+				document.querySelector('#run_text').innerText = showing ? 'CLOSE' : 'RUN';
+
+				if (!showing) {
+					editor.focus();
+					if (selectionStart != null) {
+						editor.selectionStart = selectionStart;
+						editor.selectionEnd = selectionEnd;
+					}
+				}
+				selectionStart = null;
+				selectionEnd = null;
+			}
+
+			let firstRun = true;
+
+			function run(code = document.querySelector('#editor').value) {
+				if (firstRun) firstRun = false;
+				else print('----------------------------------------------------------------------');
+				try {
+					const interpreter = new Interpreter(code, 'runtime');
+					interpreter.eval();
+				} catch (err) {
+					error(err.message);
+				}
+			}
+
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' && e.ctrlKey) {
+					e.preventDefault();
+
+					selectionStart = e.target.selectionStart;
+					selectionEnd = e.target.selectionEnd;
+
+					toggleShow();
+					if (showing) run();
+				}
+			});
+
+			clear_logs.addEventListener('click', () => {
+				logs.innerHTML = '';
+				firstRun = true;
+				toggleShow();
+			});
+			document.querySelector('#run').addEventListener('click', () => {
+				toggleShow();
+				if (showing) run();
+			});
+
+			// try {
+			// 	const interpreter = new Interpreter(code, 'test.lua');
+			// 	interpreter.eval();
+			// } catch (err) {
+			// 	error(err.message);
+			// 	throw err;
+			// }
+		</script>
+
+		<script src="./script.js" defer></script>
+	</body>
+</html>

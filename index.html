@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Lua within JS</title>
+		<script>
+			let cElm = (t, ...c) => {
+				let e = document.createElement(t);
+				e.classList.add(...c);
+				return e;
+			};
+			let addLog = (text, isError = false) => {
+				let elm = cElm('span', 'log');
+				if (isError) elm.classList.add('error');
+				elm.textContent = text;
+				document.querySelector('#logs').appendChild(elm);
+			};
+			let toString = (item) => {
+				if (typeof item === 'object') return JSON.stringify(item);
+				return new String(item);
+			};
+
+			print = (...args) => {
+				console.log(...args);
+				let string = args
+					.map((e) => (e == null ? 'nil' : toString(e)))
+					.join('\t');
+				addLog(string, false);
+			};
+			error = (...args) => {
+				console.error(...args);
+				let string = args
+					.map((e) => (e == null ? 'nil' : toString(e)))
+					.join('\t');
+				addLog(string, true);
+			};
+		</script>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<div id="logs"></div>
+		<script type="module" defer>
+			import Interpreter from './lua/Interpreter.js';
+
+			const code = await (await fetch('./test.lua')).text();
+
+			try {
+				const interpreter = new Interpreter(code, 'test.lua');
+				interpreter.eval();
+			} catch (err) {
+				error(err.message);
+				throw err;
+			}
+		</script>
+	</body>
+</html>
