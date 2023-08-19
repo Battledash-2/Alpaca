@@ -21,9 +21,11 @@ export default class Parser {
 	 */
 	constructor(lexer, filename = 'runtime') {
 		if (typeof lexer === 'string') lexer = new Lexer(lexer, filename);
+
 		this.filename = lexer.filename;
 		this.token = lexer.nextToken();
 		this.lexer = lexer;
+		this.skipSemi = true;
 	}
 
 	paren() {
@@ -200,6 +202,9 @@ export default class Parser {
 	object(pos) {
 		let res = [];
 
+		let oldSemi = this.skipSemi;
+		this.skipSemi = false;
+
 		while (this.token.type !== 'RBRACK') {
 			// let token = this.advance('IDENTIFIER').value;
 			let token = this.objectToken();
@@ -211,6 +216,7 @@ export default class Parser {
 			if (this.token.type !== 'RBRACK') this.advance(['COMMA', 'SEMICOLON']);
 		}
 
+		this.skipSemi = oldSemi;
 		this.advance('RBRACK');
 		return {
 			type: 'object',
@@ -385,7 +391,9 @@ export default class Parser {
 		}
 
 		let old = this.token;
-		this.token = this.lexer.nextToken(!(tokenType === 'SEMICOLON' || (Array.isArray(tokenType) && tokenType.includes('SEMICOLON'))));
+		// console.log(tokenType);
+		// this.token = this.lexer.nextToken(!(tokenType === 'SEMICOLON' || (Array.isArray(tokenType) && tokenType.includes('SEMICOLON'))));
+		this.token = this.lexer.nextToken(this.skipSemi);
 		return old;
 	}
 }
