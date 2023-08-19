@@ -6,6 +6,8 @@ Naming schemes:
     operations = lows
 */
 
+export const CANCEL = Symbol('cancel');
+
 function toBoolean(item) {
 	if (item === 'true') return true;
 	if (item === 'false') return false;
@@ -100,30 +102,6 @@ export default class Parser {
 		// }
 		return res;
 	}
-
-	// brackNotation(identifier) {
-	// 	this.advance('LSBRACK');
-	// 	let right = this.additionStatement();
-	// 	this.advance('RSBRACK');
-	// 	right = this.suffix(right);
-	// 	return {
-	// 		type: 'linked',
-	// 		brack: true,
-	// 		left: identifier,
-	// 		right,
-	// 		position: identifier.position,
-	// 	};
-	// }
-	// linked(left) {
-	// 	let right = this.identifier();
-	// 	return {
-	// 		type: 'linked',
-	// 		brack: false,
-	// 		left,
-	// 		right,
-	// 		position: left.position,
-	// 	};
-	// }
 
 	identifier(token = false) {
 		const identifier = this.advance('IDENTIFIER');
@@ -250,7 +228,7 @@ export default class Parser {
 	}
 
 	primary() {
-		switch (this.token.type) {
+		switch (this.token && this.token.type) {
 			case 'LBRACK':
 				return this.objectOrArray();
 			case 'NUMBER': {
@@ -281,18 +259,20 @@ export default class Parser {
 				return this.prefixStatement('RETURN', 'return', 'END');
 			case 'IF':
 				return this.ifStatement();
+			case 'END':
+				return this.token;
 
 			case 'SEMICOLON':
 				this.advance('SEMICOLON', ';');
-				return this.additionStatement();
+				return this.token ? this.primary() : CANCEL;
 		}
-		throw new SyntaxError("Unhandled primary token type '" + this.token.type + "' " + this.lexer.errorPos());
+		throw new SyntaxError("Unhandled primary token type '" + (this.token && this.token.type) + "' " + this.lexer.errorPos());
 	}
 
 	unary() {
 		let operator, num;
 
-		if (this.token.type === 'OPERATOR' && (this.token.value === '+' || this.token.value === '-' || this.token.value === 'not')) {
+		if (this.token && this.token.type === 'OPERATOR' && (this.token.value === '+' || this.token.value === '-' || this.token.value === 'not')) {
 			operator = this.token;
 			this.advance('OPERATOR');
 		}
@@ -392,7 +372,8 @@ export default class Parser {
 
 		while (this.token != null) {
 			if (endKey != undefined && (typeof endKey === 'string' ? this.token.type === endKey : endKey.includes(this.token.type))) break;
-			statements.push(this.additionStatement());
+			let r = this.additionStatement();
+			if (r !== CANCEL) statements.push(r);
 		}
 
 		if (endKey && typeof endKey === 'string') this.advance(endKey); // if we put it in the if statement within the while loop, there's a chance it won't error and will just silently fail ok
