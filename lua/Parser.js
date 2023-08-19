@@ -6,8 +6,6 @@ Naming schemes:
     operations = lows
 */
 
-export const CANCEL = Symbol('cancel');
-
 function toBoolean(item) {
 	if (item === 'true') return true;
 	if (item === 'false') return false;
@@ -259,12 +257,6 @@ export default class Parser {
 				return this.prefixStatement('RETURN', 'return', 'END');
 			case 'IF':
 				return this.ifStatement();
-			case 'END':
-				return this.token;
-
-			case 'SEMICOLON':
-				this.advance('SEMICOLON', ';');
-				return this.token ? this.primary() : CANCEL;
 		}
 		throw new SyntaxError("Unhandled primary token type '" + (this.token && this.token.type) + "' " + this.lexer.errorPos());
 	}
@@ -328,12 +320,12 @@ export default class Parser {
 		return left;
 	}
 
-	combinationalComparitiveStatement() {
-		return this.conditionalStatement(this.defineStatement, (t) => t.type === 'CONDITIONAL' && (t.value === 'and' || t.value === 'or'));
-	}
 	comparitiveStatement() {
 		// ==|~=|>=|<=|>|<|or|and
-		return this.conditionalStatement(this.combinationalComparitiveStatement, (t) => t.type === 'CONDITIONAL' && ['==', '~=', '>=', '<=', '<', '>'].includes(t.value));
+		return this.conditionalStatement(this.defineStatement, (t) => t.type === 'CONDITIONAL' && ['==', '~=', '>=', '<=', '<', '>'].includes(t.value));
+	}
+	combinationalComparitiveStatement() {
+		return this.conditionalStatement(this.comparitiveStatement, (t) => t.type === 'CONDITIONAL' && (t.value === 'and' || t.value === 'or'));
 	}
 
 	opStatement(up, isOp) {
@@ -357,7 +349,7 @@ export default class Parser {
 	}
 
 	exponentialStatement() {
-		return this.opStatement(this.comparitiveStatement, (t) => t.type === 'OPERATOR' && t.value === '^');
+		return this.opStatement(this.combinationalComparitiveStatement, (t) => t.type === 'OPERATOR' && t.value === '^');
 	}
 
 	multiplicationStatement() {
@@ -372,8 +364,7 @@ export default class Parser {
 
 		while (this.token != null) {
 			if (endKey != undefined && (typeof endKey === 'string' ? this.token.type === endKey : endKey.includes(this.token.type))) break;
-			let r = this.additionStatement();
-			if (r !== CANCEL) statements.push(r);
+			statements.push(this.additionStatement());
 		}
 
 		if (endKey && typeof endKey === 'string') this.advance(endKey); // if we put it in the if statement within the while loop, there's a chance it won't error and will just silently fail ok
@@ -394,7 +385,7 @@ export default class Parser {
 		}
 
 		let old = this.token;
-		this.token = this.lexer.nextToken();
+		this.token = this.lexer.nextToken(!(tokenType === 'SEMICOLON' || (Array.isArray(tokenType) && tokenType.includes('SEMICOLON'))));
 		return old;
 	}
 }

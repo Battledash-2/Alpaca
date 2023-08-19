@@ -51,12 +51,14 @@ export default class Lexer {
 		return this.pointer >= this.code.length;
 	}
 
-	nextToken() {
+	nextToken(skipSemi) {
 		if (this.isEOF()) return null;
 		for (let value of spec) {
 			let match = this.match(value[0]);
+
 			if (match == null) continue;
-			if (value[1] == null) return this.nextToken();
+			if (value[1] == null || (skipSemi && value[1] === 'SEMICOLON')) return this.nextToken();
+
 			return {
 				value: value[1] === 'STRING' ? match.slice(1, -1) : match,
 				type: value[1],
