@@ -283,6 +283,7 @@ export default class Parser {
 				return this.ifStatement();
 
 			case 'SEMICOLON':
+				this.advance('SEMICOLON', ';');
 				return this.additionStatement();
 		}
 		throw new SyntaxError("Unhandled primary token type '" + this.token.type + "' " + this.lexer.errorPos());
