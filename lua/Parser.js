@@ -36,14 +36,20 @@ export default class Parser {
 	}
 
 	argumentList(type) {
-		this.advance('LPAR', 'left bracket');
+		let rpar = this.token.type == 'LPAR';
+		if (rpar) this.advance('LPAR', 'left bracket');
+
 		const args = [];
 		while (this.token.type !== 'RPAR') {
-			if (!type) args.push(this.suffix(this.additionStatement()));
-			else args.push(this.advance(type));
-			if (this.token.type !== 'RPAR') this.advance('COMMA');
+			if (!type) {
+				args.push(this.suffix(this.additionStatement()));
+			} else args.push(this.advance(type));
+
+			if (!rpar) break;
+			if (this.token.type !== 'RPAR' && rpar) this.advance('COMMA');
 		}
-		this.advance('RPAR', 'right bracket');
+
+		if (rpar) this.advance('RPAR', 'right bracket');
 		return args;
 	}
 
@@ -77,14 +83,14 @@ export default class Parser {
 
 	suffix(identifier, func = true, assign = true, linked = true) {
 		let res = identifier;
-		if (this.token && this.token.type === 'LPAR') {
+		if (this.token && (this.token.type === 'LPAR' || this.token.type == 'LBRACK' || Parser.PrimitiveValues.includes(this.token.type))) {
 			res = {
 				type: 'function_call',
 				identifier: res,
 				arguments: this.argumentList(false),
 				position: identifier.position,
 			};
-		}
+		} else if (this.token && this.token.type === 'SEMICOLON') this.advanceWithSemi('SEMICOLON');
 		if (this.token && this.token.type === 'PERIOD' && linked) {
 			res = this.linked(res);
 		}
@@ -104,7 +110,7 @@ export default class Parser {
 	}
 
 	identifier(token = false) {
-		const identifier = this.advance('IDENTIFIER');
+		const identifier = this.advanceWithSemi('IDENTIFIER');
 		if (token) identifier.type = 'TOKEN';
 		return this.suffix(identifier);
 	}
@@ -382,8 +388,15 @@ export default class Parser {
 		};
 	}
 
+	advanceWithSemi(...a) {
+		if (this.skipSemi) this.skipSemi = false;
+		let r = this.advance(...a);
+		this.skipSemi = true;
+		return r;
+	}
+
 	advance(tokenType, displayType) {
-		displayType = displayType || (tokenType && typeof tokenType === 'string') ? tokenType : tokenType.join(' OR ');
+		displayType = tokenType == null ? 'any' : displayType || (tokenType && typeof tokenType === 'string') ? tokenType : tokenType.join(' OR ');
 
 		if (tokenType && this.token == null) throw new SyntaxError("Input abruptly ended while expecting '" + displayType + "' " + this.lexer.errorPos());
 		if (tokenType && (typeof tokenType === 'string' ? this.token.type !== tokenType : !tokenType.includes(this.token.type))) {
