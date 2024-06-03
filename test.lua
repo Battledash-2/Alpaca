@@ -1,12 +1,18 @@
--- local DEFAULT_NAME = "User";
+-- !! FIX !!
 
--- local name = io.read("What's your name?");
+local function ask(question, type)
+    local q = question .. " - "
 
--- if name == "" or name == nil then
--- 	print("No name provided, defaulting to " .. DEFAULT_NAME .. ".");
--- 	name = DEFAULT_NAME;
--- end
+    if type == "bool" then q = q .. "Y/N" end
+    if type == "str" then q = q .. "String" end
+    if type == "num" then q = q .. "Number" end
 
--- print("Hello, " .. name .. "!");
+    local r = io.read(q)
+    return r
+end
 
-print "hello" .. " " .. "world"
+local age = ask("How old are you?", "num")
+local name = ask("What is your name?", "str")
+local debt = ask("Are you in debt?", "bool")
+
+print(name .. " is " .. age .. " years old and is " .. (debt == "Y" and "in debt." or "not in debt."))

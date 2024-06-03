@@ -97,6 +97,18 @@ export default class Parser {
 		if (this.token && this.token.type === 'LSBRACK' && linked) {
 			res = this.bracked(res);
 		}
+
+		if (res.type && res.type === 'linked' && res.right && res.right.type && res.right.type === 'function_call') {
+			res = { // !! OPTIMIZE
+				type: 'function_call',
+				identifier: {
+					...res,
+					right: res.right.identifier
+				},
+				arguments: res.right.arguments,
+				position: res.left.position
+			}
+		}
 		// if (this.token && this.token.type === 'ASSIGN') {
 		// 	this.advance('ASSIGN', '=');
 		// 	res = {

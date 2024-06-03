@@ -1,7 +1,7 @@
 import Environment from '../Environment.js';
 
 export const global = {
-	print,
+	print: typeof print !== "undefined" ? print : console.log,
 	io: {
 		read: prompt,
 		write: alert,
