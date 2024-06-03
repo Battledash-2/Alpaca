@@ -3,12 +3,11 @@
 local function ask(question, type)
     local q = question .. " - "
 
-    if type == "bool" then q = q .. "Y/N" end
+    if type == "bool" then q = q .. "Y/N" end -- These don't work the first time!
     if type == "str" then q = q .. "String" end
     if type == "num" then q = q .. "Number" end
 
-    local r = io.read(q)
-    return r
+    return io.read(q)
 end
 
 local age = ask("How old are you?", "num")
