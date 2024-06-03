@@ -113,8 +113,8 @@ export default class Interpreter {
 
 			const val = this.eval(ast.value, env);
 
-			if (this.inLocal) this.set(env, name, val);
-			else this.set(this.top, name, val);
+			if (this.inLocal) varenv.define(name, val, false);
+			else varenv.set(name, val, false);
 
 			return true;
 		}
