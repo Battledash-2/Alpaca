@@ -1,17 +1,24 @@
--- !! FIX !!
+local obj = {
+    hello = "hi";
+    bye = "hello";
+    inner = {
+        ok = "no";
+        hi = function ()
+            local v = obj.bye
+            print(v);
+        end
+    }
+}
 
-local function ask(question, type)
-    local q = question .. " - "
-
-    if type == "bool" then q = q .. "Y/N" end -- These don't work the first time!
-    if type == "str" then q = q .. "String" end
-    if type == "num" then q = q .. "Number" end
-
-    return io.read(q)
+function obj.inner.mean()
+    print('THATS NOT NICE');
 end
 
-local age = ask("How old are you?", "num")
-local name = ask("What is your name?", "str")
-local debt = ask("Are you in debt?", "bool")
+obj.inner.mean(); -- "THATS NOT NICE"
+obj.inner.hi(); -- "hi"
 
-print(name .. " is " .. age .. " years old and is " .. (debt == "Y" and "in debt." or "not in debt."))
+print(obj.inner) -- {obj}
+print(obj.inner.ok) -- "no"
+
+getfenv(obj.inner.hi).obj.hello = 'bye';
+print(getfenv(obj.inner.hi).obj.hello) -- "bye"

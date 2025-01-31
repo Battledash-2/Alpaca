@@ -12,6 +12,11 @@ function toBoolean(item) {
 	return !!item;
 }
 
+export const Context = {
+	Global: 1,
+	FunctionDefinition: 2,
+}
+
 export default class Parser {
 	static PrimitiveValues = ['NUMBER', 'STRING', 'BOOLEAN', 'NULL'];
 
@@ -22,6 +27,7 @@ export default class Parser {
 	constructor(lexer, filename = 'runtime') {
 		if (typeof lexer === 'string') lexer = new Lexer(lexer, filename);
 
+		this.context = Context.Global;
 		this.filename = lexer.filename;
 		this.token = lexer.nextToken();
 		this.lexer = lexer;
@@ -61,7 +67,7 @@ export default class Parser {
 				brack: false,
 				position: left.position,
 				left: left,
-				right: this.identifier(),
+				right: this.advance("IDENTIFIER", "Identifier"),
 			};
 		}
 		return this.suffix(left);
@@ -83,7 +89,7 @@ export default class Parser {
 
 	suffix(identifier, func = true, assign = true, linked = true) {
 		let res = identifier;
-		if (this.token && (this.token.type === 'LPAR' || this.token.type == 'LBRACK' || Parser.PrimitiveValues.includes(this.token.type))) {
+		if (this.context !== Context.FunctionDefinition && this.token && (this.token.type === 'LPAR' || this.token.type == 'LBRACK' || Parser.PrimitiveValues.includes(this.token.type))) {
 			res = {
 				type: 'function_call',
 				identifier: res,
@@ -98,17 +104,17 @@ export default class Parser {
 			res = this.bracked(res);
 		}
 
-		if (res.type && res.type === 'linked' && res.right && res.right.type && res.right.type === 'function_call') {
-			res = { // !! OPTIMIZE
-				type: 'function_call',
-				identifier: {
-					...res,
-					right: res.right.identifier
-				},
-				arguments: res.right.arguments,
-				position: res.left.position
-			}
-		}
+		// if (res.type && res.type === 'linked' && res.right && res.right.type && res.right.type === 'function_call') {
+		// 	res = { // !! OPTIMIZE
+		// 		type: 'function_call',
+		// 		identifier: {
+		// 			...res,
+		// 			right: res.right.identifier
+		// 		},
+		// 		arguments: res.right.arguments,
+		// 		position: res.left.position
+		// 	}
+		// }
 		// if (this.token && this.token.type === 'ASSIGN') {
 		// 	this.advance('ASSIGN', '=');
 		// 	res = {
@@ -129,13 +135,19 @@ export default class Parser {
 
 	function() {
 		let position = this.advance('FUNCTION').position;
+		
+		this.context = Context.FunctionDefinition;
+		let ident = this.token.type === 'IDENTIFIER' ? this.identifier() : null;
+		this.context = Context.Global;
+
 		let res = {
 			type: 'function_define',
-			identifier: this.token.type === 'IDENTIFIER' ? this.advance('IDENTIFIER') : null,
+			identifier: ident,
 			parameters: this.argumentList('IDENTIFIER'),
 			body: this.statementList('END'),
 			position,
 		};
+		
 		return res;
 	}
 

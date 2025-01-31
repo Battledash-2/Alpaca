@@ -12,7 +12,7 @@ function hasEnv(func) {
 
 class Internal {
 	/**
-	 * @param {"RETURN"|"OBJECT"|"IDENTIFIER"} type
+	 * @param {"RETURN"|"OBJECT"|"IDENTIFIER"|"LINKED"} type
 	 * @param {*} value
 	 */
 	constructor(type, value) {
@@ -105,16 +105,16 @@ export default class Interpreter {
 
 		// Variables
 		if (type('set_variable')) {
-			// let name = this.eval(ast.identifier, env, true);
-			let name = ast.identifier.value;
+			let left = this.eval(ast.identifier, varenv, true);
+			if (left instanceof Internal && left.type === 'LINKED') return this.objectSet(left, ast.value);
 
-			if (name instanceof Internal && name.type === 'IDENTIFIER') name = name.value;
-			if (!name.trim()) throw new EvalError('Name is false-ish ' + this.errorPos(ast.identifier));
-
+			if (typeof left !== 'string') throw new TypeError('Name is not an identifier ' + this.errorPos(ast.identifier));
+			if (left == null || !left.trim()) throw new TypeError('Name is false-ish ' + this.errorPos(ast.identifier));
+			
 			const val = this.eval(ast.value, env);
 
-			if (this.inLocal) varenv.define(name, val, false);
-			else varenv.set(name, val, false);
+			if (this.inLocal) varenv.define(left, val, false);
+			else varenv.set(left, val, false);
 
 			return true;
 		}
@@ -122,12 +122,25 @@ export default class Interpreter {
 		// -- FUNCTIONS -- \\
 		if (type('function_define')) {
 			const funct = {
-				name: (ast.identifier && ast.identifier.value) || null,
+				// name: (ast.identifier && ast.identifier.value) || null,
+				type: 'function',
 				env,
 				body: ast.body,
 				parameters: ast.parameters,
 			};
-			if (ast.identifier != null) env.define(ast.identifier.value, funct);
+			
+			if (ast.identifier !== null) {
+				let name = this.eval(ast.identifier, env, true); // string or Internal:LINKED
+				
+				if (typeof name === 'string') {
+					funct.name = name;
+					env.define(ast.identifier.value, funct);
+				} else if (name instanceof Internal && name.type === 'LINKED') {
+					funct.name = name.value.right;
+					this.set(name.value.left, name.value.right, funct, false);
+				} else throw new SyntaxError('Function definition identifier malformed ' + this.errorPos(ast));
+			}
+
 			return funct;
 		}
 		if (type('function_call')) {
@@ -141,6 +154,8 @@ export default class Interpreter {
 				if (obj) return new Internal('RETURN', r);
 				return r;
 			}
+
+			if (typeof funct.type === 'undefined' || funct.type !== 'function') throw new TypeError('Attempt to call a non-function value \'' + funct + '\' at ' + this.errorPos(ast));
 
 			const args = {};
 			for (let parIdx in funct.parameters) {
@@ -205,10 +220,14 @@ export default class Interpreter {
 			return new LuaObject(record, false);
 		}
 		if (type('linked')) {
-			if (ast.left.type === 'linked' && ast.right.type === 'linked') return this.bothLinked(ast, env, obj, varenv);
-			else if (!ast.brack) return this.linked(ast, env, obj, varenv);
-			else return this.brackLinked(ast, env, obj, varenv);
-			// throw 'Unimplemented';
+			// if (ast.left.type === 'linked' && ast.right.type === 'linked') return this.bothLinked(ast, env, obj, varenv);
+			// else if (!ast.brack) return this.linked(ast, env, obj, varenv);
+			// else return this.brackLinked(ast, env, obj, varenv);
+			const left = this.eval(ast.left);
+			const right = ast.brack ? this.eval(ast.right) : ast.right.value;
+
+			if (!obj) return this.get(left, right);
+			return new Internal("LINKED", {left, right});
 		}
 
 		if (ast instanceof Internal && ast.type === 'RETURN') {
@@ -218,36 +237,39 @@ export default class Interpreter {
 		throw new EvalError("Unknown type '" + ast.type + "' " + this.errorPos(ast));
 	}
 
-	bothLinked(ast, env, obj) {
-		let left = this.eval(ast.left, env, obj);
-		return this.eval(ast.right, env, left);
+	objectSet(obj, val) {
+		this.set(obj.value.left, obj.value.right, this.eval(val), false);
+		return true;
 	}
-	brackLinked(ast, env, obj) {
-		let evaled = this.eval(ast.left, env, ast.left.type === 'linked' || ast.left.type === 'IDENTIFIER' ? obj : false);
-		let left = obj ? this.get(obj, evaled) : evaled;
-		if (left == null) throw new TypeError('Attempt to index a nil value ' + this.errorPos(ast));
 
-		return this.get(left, this.eval(ast.right, env, false));
-	}
-	linked(ast, env, obj) {
-		if (ast.right.type === 'function_call') {
-			let tright = ast.right.identifier;
-			let tobj = { ...ast.right, identifier: ast };
-			tobj.identifier.right = tright;
-			return this.eval(tobj, env, obj);
-		}
+	// bothLinked(ast, env, obj) {
+	// 	let left = this.eval(ast.left, env, obj);
+	// 	return this.eval(ast.right, env, left);
+	// }
+	// brackLinked(ast, env, obj) {
+	// 	let evaled = this.eval(ast.left, env, ast.left.type === 'linked' || ast.left.type === 'IDENTIFIER' ? obj : false);
+	// 	let left = obj ? this.get(obj, evaled) : evaled;
+	// 	if (left == null) throw new TypeError('Attempt to index a nil value ' + this.errorPos(ast));
 
-		let evaled = this.eval(ast.left, env, obj);
-		let left = obj && ast.left.type !== 'function_call' ? this.get(obj, evaled) : evaled;
-		if (left instanceof Internal && left.type === 'RETURN') left = this.getValueFromInternal(left);
-		if (left == null) throw new TypeError('Attempt to index a nil value ' + this.errorPos(ast));
+	// 	return this.get(left, this.eval(ast.right, env, false));
+	// }
+	// linked(ast, env, obj) {
+	// 	let left = this.eval(ast.left, env, typeof obj === 'object' ? obj : false);
+	// 	// let left = (obj && ast.left.type !== 'function_call') ? this.get(obj, evaled) : evaled;
 
-		if (ast.right.type === 'linked') {
-			return this.eval(ast.right, env, left);
-		} else {
-			return this.get(left, ast.right.value);
-		}
-	}
+	// 	if (left instanceof Internal && left.type === 'RETURN') left = this.getValueFromInternal(left);
+	// 	if (left == null) throw new TypeError('Attempt to index a nil value ' + this.errorPos(ast));
+
+	// 	console.log(left, ast.right, obj); // obj[left][right]
+		
+	// 	if (ast.right.type === 'linked') {
+	// 		return this.eval(ast.right, env, left);
+	// 	} else {
+	// 		if (obj && typeof obj === 'boolean') return { name: ast.right.value, env: left }
+	// 		else if (typeof obj === 'boolean') return this.get(this.get(this.get(obj), left), ast.right.value);
+	// 		else return this.get(left, ast.right.value);
+	// 	}
+	// }
 
 	getValueFromInternal(internal) {
 		while (internal instanceof Internal) {
@@ -266,6 +288,12 @@ export default class Interpreter {
 		if (object instanceof Environment) return object.set(name, value, conzt);
 		if (typeof object === 'object' && !(object instanceof LuaObject)) return (object[name] = value);
 		return object.set(name, value, conzt);
+	}
+	define(object, name, value, conzt = false) {
+		if (object instanceof Environment) return object.define(name, value, conzt);
+		if (typeof object === 'object' && !(object instanceof LuaObject)) return (object[name] = value);
+		if (object instanceof LuaObject) return object.set(name, value);
+		return object.define(name, value, conzt);
 	}
 
 	typeof(selector) {

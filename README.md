@@ -13,6 +13,7 @@ Try Alpaca [here](https://Battledash-2.github.io/Alpaca/editor)! Feel free to cr
 |Item|Priority|
 |----|--------|
 |Loops (for / while)|*HIGH*|
+|Fenv support for built in function||*MEDIUM*|
 |Metatables|*LOW*|
 
 ## Dropped 😞
