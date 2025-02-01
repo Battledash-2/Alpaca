@@ -84,11 +84,18 @@ onload = () => {
 	];
 	let opened = [];
 
+	function scroll() {
+		let display = document.querySelector('#display');
+		display.style.top = (-editor.scrollTop) + "px";
+	}
+
 	editor.addEventListener('input', (e) => {
 		let display = document.querySelector('#display');
+		scroll();
 		const colored = colorCode(e.target.value);
 		display.innerHTML = colored;
 	});
+	editor.addEventListener('scroll', scroll);
 	editor.addEventListener('keydown', (e) => {
 		let display = document.querySelector('#display');
 
