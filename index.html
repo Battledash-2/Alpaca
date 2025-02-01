@@ -24,7 +24,10 @@
 			print = (...args) => {
 				console.log(...args);
 				let string = args
-					.map((e) => (e == null ? 'nil' : toString(e)))
+					.map((e) => {
+						if (e.record) return toString(e.record);
+						return e == null ? 'nil' : toString(e);
+					})
 					.join('\t');
 				addLog(string, false);
 			};
