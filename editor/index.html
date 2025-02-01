@@ -19,13 +19,21 @@
 				document.querySelector('#logs').appendChild(elm);
 			};
 			let toString = (item) => {
-				if (typeof item === 'object') return JSON.stringify(item);
+				if (typeof item === 'object') {
+					try {
+						return JSON.stringify(item);
+					} catch (e) {
+						return item.toString();
+					}
+				}
 				return new String(item);
 			};
 
 			print = (...args) => {
 				console.log(...args);
-				let string = args.map((e) => (e == null ? 'nil' : toString(e))).join('\t');
+				let string = args
+					.map((e) => (e == null ? 'nil' : toString(e)))
+					.join('\t');
 				addLog(string, false);
 			};
 			error = (...args) => {
